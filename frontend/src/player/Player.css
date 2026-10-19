@@ -20,9 +20,9 @@
 
 #player-icon {
     position: absolute;
-    width: 82%;
-    left: 9%;
-    top: 6.3%;
+    width: 88%;
+    left: 6%;
+    top: 4.5%;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
@@ -45,6 +45,27 @@
     filter: brightness(calc(var(--playerBrightnessFilter) - 5%));
 }
 
+/* Badge shown on whichever player is currently marked for execution by the
+   Marked For Execution emergency power (resolved later by the Execution
+   power/3 enacted fascist policies, whichever comes first). */
+#player-execution-mark-icon {
+    position: absolute;
+    top: 2%;
+    right: 3%;
+    width: 24%;
+    padding: 4%;
+    box-sizing: border-box;
+    border-radius: 50%;
+    /* The icon itself is dark, so it needs a light backing to stay visible
+       against portraits of any color. */
+    background-color: rgba(244, 220, 185, 0.92);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
 #player-name {
     position:absolute;
     color: var(--backgroundDark);
@@ -59,15 +80,75 @@
     user-select: none
 }
 
+/* Kept separate from #player-name (rather than appended to the name text)
+   so the extra "HOST" text doesn't change the Textfit auto-sizing of the
+   player's actual name - otherwise the host's name would end up visibly
+   smaller than everyone else's just because their label happens to be
+   longer. Only ever shown in the lobby, where showRole is false, so it
+   never overlaps the in-game identity icon/label below it. */
+#player-host-label {
+    position: absolute;
+    top: 81%;
+    left: 10%;
+    width: 80%;
+    height: 10%;
+    margin: 0;
+    text-align: center;
+    font-size: min(1.6vh, 2.1vmin);
+    font-weight: bold;
+    font-family: var(--textFont);
+    color: var(--textColorHighlight);
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+#player-host-label.darken {
+    color: var(--textShadowed);
+}
+
+/* A public banner across the top of the portrait for public per-player
+   facts that survive regardless of showRole (unlike the actual identity
+   icon/label below): confirmed-not-Hitler (survived a Chancellorship that
+   would have been a Fascist win had they been Hitler) and the Communist
+   "Confession" power's result ("NOT FASCIST"/"NOT COMMUNIST"). Placed above
+   the portrait entirely so it never competes for space with those - a dark
+   translucent strip keeps the text readable over any portrait color. Stacks
+   as multiple lines if more than one applies to the same player. */
+#player-top-banner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    padding: 2% 0;
+    box-sizing: border-box;
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.55);
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+#player-top-banner p {
+    margin: 0;
+    font-size: min(1.3vh, 1.7vmin);
+    font-weight: bold;
+    font-family: var(--textFont);
+    color: var(--textColorOnDark);
+}
+
 #player-name.darken {
     color: var(--textShadowed);
 }
 
 #player-identity-icon {
     position:absolute;
-    top: 75%;
-    left: 8%;
-    width: 28%;
+    top: 78%;
+    left: 5%;
+    width: 20%;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
@@ -92,12 +173,12 @@
 
 #player-identity-label {
     position:absolute;
-    top: 69%;
-    left: 36%;
-    width: 50%;
+    top: 72%;
+    left: 25%;
+    width: 66%;
     height: 12%;
     /*noinspection CssInvalidFunction*/
-    font-size: min(2.3vh, 3vmin);
+    font-size: min(1.8vh, 2.4vmin);
     color: var(--textColorHighlight);
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -108,6 +189,22 @@
 
 #player-identity-label.liberal-text {
     color: var(--textColorLiberal);
+}
+
+#player-identity-label.communist-text {
+    color: var(--textColorCommunist);
+}
+
+#player-identity-label.anarchist-text {
+    color: var(--textColorAnarchist);
+}
+
+#player-identity-label.capitalist-text {
+    color: var(--textColorCapitalist);
+}
+
+#player-identity-label.fascist-policy-text {
+    color: var(--textColorFascistPolicy);
 }
 
 #player-disabled-label {

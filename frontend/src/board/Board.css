@@ -26,6 +26,17 @@
     image-rendering: pixelated;
 }
 
+/* The Communist token is cropped from the full-size policy card art (no
+   dedicated small icon exists), so it's sized down slightly relative to the
+   hand-tuned Liberal/Fascist token icons to avoid looking oversized on the
+   board. */
+#policy-communist {
+    position: absolute;
+    width: 9%;
+    top:30%;
+    image-rendering: pixelated;
+}
+
 .hide {
     visibility: hidden;
 }
@@ -63,4 +74,29 @@
 #election-tracker {
     transition: 1.0s left;
     transition-timing-function: ease-in-out;
+}
+
+/* Emergency Powers board tokens. Sized and placed the same way as the
+   Liberal/Fascist tracker tokens (full card, not a cropped-down icon),
+   filling the full "pocket" of whichever slot it lands in - including the
+   6th slot, which is its own single double-wide pocket shared by Article
+   48/Enabling Act (only one of the two ever fills it, chosen by card
+   type), not two separate narrow pockets. Placed at each slot's
+   individually measured center position (see Board.js's
+   EMERGENCY_POWER_SLOT_POSITIONS) with transform centering it on that
+   point. */
+#policy-emergency-power {
+    position: absolute;
+    width: 10%;
+    top: 30%;
+    transform: translateX(-50%);
+    image-rendering: pixelated;
+}
+
+/* The 6th slot's pocket spans both printed sub-boxes (Article 48's
+   "Pardon" and the Enabling Act's "Vote Of No Confidence"), so its token
+   is widened to actually bridge/overlap both of them from its centered
+   position, instead of looking like it only belongs to one side. */
+#policy-emergency-power.slot-6 {
+    width: 16%;
 }

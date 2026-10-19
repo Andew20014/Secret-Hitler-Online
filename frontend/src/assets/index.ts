@@ -49,6 +49,8 @@ export default portraits;
 
 export const defaultPortrait = "p_default";
 
+// All portrait IDs a player can pick from; every icon is available by
+// default, with no unlock gating.
 export const unlockedPortraits: string[] = [
   "p1",
   "p2",
@@ -60,8 +62,6 @@ export const unlockedPortraits: string[] = [
   "p8",
   "p9",
   "p10",
-];
-export const lockedPortraits: string[] = [
   "p11",
   "p12",
   "p13",

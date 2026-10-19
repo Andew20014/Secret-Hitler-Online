@@ -10,7 +10,7 @@ public class FiveToSixPlayerBoard extends Board {
 
     @Override
     public PresidentialPower getActivatedPower() {
-        if (getLastEnactedType() == Policy.Type.FASCIST) {
+        if (getLastEnactedType() == Policy.Type.FASCIST || getLastEnactedType() == Policy.Type.ANTI_COMMUNIST) {
             switch (getNumFascistPolicies()) {
                 case 3:
                     return PresidentialPower.PEEK;

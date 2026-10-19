@@ -1,0 +1,39 @@
+@import '../variables.css';
+
+#communist-vote-panel {
+    padding: 10px 16px;
+    background-color: var(--backgroundLight);
+    margin: 10px;
+    border-radius: 4%/6%;
+    border: 2px solid var(--textColorCommunist);
+}
+
+#communist-vote-label {
+    color: var(--textColorCommunist);
+    margin-bottom: 4px;
+}
+
+#communist-vote-header {
+    color: var(--textColorWhite);
+    margin-top: 0;
+}
+
+#communist-vote-tally {
+    text-align: left;
+    margin: 10px auto;
+    max-width: 60vmin;
+}
+
+#communist-vote-tally-row {
+    color: var(--textColorWhite);
+    margin: 2px 0;
+}
+
+#communist-vote-tally-name {
+    font-weight: bold;
+    color: var(--textColorCommunist);
+}
+
+#communist-vote-retract-button {
+    margin-top: 6px;
+}

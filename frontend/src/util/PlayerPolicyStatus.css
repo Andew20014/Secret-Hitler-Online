@@ -2,7 +2,7 @@
 
 #pps-container {
     padding: 10px;
-    background-color: var(--backgroundDark);
+    background-color: var(--backgroundLight);
     margin: 10px;
     border-radius: 4%/6%;
 }

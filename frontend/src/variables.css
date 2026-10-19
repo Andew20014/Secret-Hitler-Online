@@ -8,7 +8,18 @@
     --textColorOnWhite: #69645e;
     --textColorOnDark: #bbbbbb;
     --textColorHighlight: var(--headerFill);
+    /* Exact colors sampled from the actual role/policy icon art, used
+       everywhere that art appears so text always matches its icon exactly.
+       Fascist, Hitler, Monarchist, and the Anti-Communist policy all render
+       in the same brick-red in their source art, so they share
+       --textColorFascistPolicy; likewise Anarchist and the Article 48/
+       Enabling Act emergency powers all render in near-black ink, so they
+       share --textColorAnarchist. */
     --textColorLiberal: #5a9ba6;
+    --textColorCommunist: #ec0604;
+    --textColorAnarchist: #313633;
+    --textColorCapitalist: #8a8f5c;
+    --textColorFascistPolicy: #6b1e1c;
     --textColorWhite: #ffffff;
     --textShadowed: #141414;
     --buttonFill: var(--headerFill);

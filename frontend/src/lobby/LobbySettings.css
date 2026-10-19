@@ -1,0 +1,62 @@
+#lobby-settings-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 700px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+#lobby-settings-header {
+  margin-bottom: 5px;
+  font-family: var(--headerFont);
+  font-size: calc(10px + 1.8vmin);
+  color: var(--headerTextColor);
+}
+
+#lobby-settings-vip-text {
+  margin-top: 0;
+  margin-bottom: 5px;
+  font-family: var(--textFont);
+  font-size: calc(8px + 1.2vmin);
+  font-weight: 300;
+  color: var(--textColorOnDark);
+}
+
+.lobby-settings-option {
+  display: block;
+  text-align: left;
+  margin-bottom: 4px;
+  font-family: var(--textFont);
+  font-size: calc(8px + 1.4vmin);
+  color: var(--textColorOnDark);
+}
+
+/* The site-wide `input` rule (App.css) sizes text inputs to 40vmin, which
+   also stretches checkboxes into a huge invisible box that pushes the
+   label text far to the right. Reset that here. */
+.lobby-settings-option input[type="checkbox"] {
+  width: auto;
+  min-width: auto;
+  padding: 0;
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+}
+
+.lobby-settings-option select {
+  width: auto;
+  min-width: auto;
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-family: var(--textFont);
+  font-size: calc(8px + 1.4vmin);
+  vertical-align: middle;
+}
+
+#lobby-settings-warning-text {
+  margin-top: 5px;
+  font-family: var(--textFont);
+  font-size: calc(8px + 1.2vmin);
+  font-weight: 300;
+  color: var(--textColorHighlight);
+}

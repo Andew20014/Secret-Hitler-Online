@@ -6,7 +6,7 @@ public class NineToTenPlayerBoard extends Board{
 
     @Override
     public PresidentialPower getActivatedPower() {
-        if (getLastEnactedType() == Policy.Type.FASCIST) {
+        if (getLastEnactedType() == Policy.Type.FASCIST || getLastEnactedType() == Policy.Type.ANTI_COMMUNIST) {
             switch (getNumFascistPolicies()) {
                 case 1:
                 case 2:

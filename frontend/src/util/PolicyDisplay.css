@@ -2,8 +2,56 @@
 
 #legislative-policy {
     width: 20vmin;
+    aspect-ratio: 0.735;
+    object-fit: cover;
     margin: 10px;
     border-radius: 8%/6%;
+}
+
+/* .selectable's own highlight relies on background-color showing through
+   transparent pixels in the card art, which only some policy images have
+   (e.g. the liberal card's edges are transparent, but most of the XL mod
+   cards are fully opaque to their edges). Use a box-shadow ring instead,
+   which highlights consistently regardless of the source image's own
+   transparency. */
+#legislative-policy.selectable {
+    background-color: transparent;
+    box-shadow: 0 0 0 4px var(--selectionNone);
+    transition: box-shadow 0.1s ease;
+}
+
+#legislative-policy.selectable:hover {
+    background-color: transparent;
+    box-shadow: 0 0 0 4px var(--selectionHover);
+}
+
+#legislative-policy.selectable.selected,
+#legislative-policy.selectable:active {
+    background-color: transparent;
+    box-shadow: 0 0 0 4px var(--selectionPressed);
+}
+
+.legislative-policy-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+/* Shown over the policy image for XL mod policy types that don't have
+   dedicated artwork yet (e.g. COMMUNIST, ARTICLE_48), so they aren't
+   mistaken for a fascist policy. */
+.legislative-policy-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    font-size: 0.8em;
+    font-weight: bold;
+    text-align: center;
+    border-radius: 4px;
+    pointer-events: none;
 }
 
 #legislative-button-container {

@@ -42,6 +42,18 @@ public class Lobby implements Serializable {
     /* Used to reassign users to previously chosen images if they disconnect */
     final private ConcurrentHashMap<String, String> usernameToPreferredIcon;
 
+    // Secret Hitler XL mod options. Default to vanilla (all disabled) until the
+    // host configures the lobby before starting a game.
+    private boolean communistsIncluded = false;
+    private boolean anarchistIncluded = false;
+    private boolean capitalistIncluded = false;
+    private boolean monarchistIncluded = false;
+    private boolean antiFascistPolicyIncluded = false;
+    private boolean antiCommunistPolicyIncluded = false;
+    private boolean socialDemocraticPolicyIncluded = false;
+    private boolean longerLiberalTrackIncluded = false;
+    private int emergencyPowersIncluded = 0;
+
     public static long LOBBY_TIMEOUT_DURATION_IN_MIN = 10;
     public static float PLAYER_TIMEOUT_IN_SEC = 3;
     public static float CPU_ACTION_DELAY_IN_SEC = 4;
@@ -109,6 +121,124 @@ public class Lobby implements Serializable {
             return new ArrayList<String>(userToUsername.values());
         }
     }
+
+    /////// Game Mod Settings
+    // <editor-fold desc="Game Mod Settings">
+
+    synchronized public boolean isCommunistsIncluded() {
+        return communistsIncluded;
+    }
+
+    synchronized public void setCommunistsIncluded(boolean communistsIncluded) {
+        this.communistsIncluded = communistsIncluded;
+    }
+
+    synchronized public boolean isAnarchistIncluded() {
+        return anarchistIncluded;
+    }
+
+    synchronized public void setAnarchistIncluded(boolean anarchistIncluded) {
+        this.anarchistIncluded = anarchistIncluded;
+    }
+
+    synchronized public boolean isCapitalistIncluded() {
+        return capitalistIncluded;
+    }
+
+    synchronized public void setCapitalistIncluded(boolean capitalistIncluded) {
+        this.capitalistIncluded = capitalistIncluded;
+    }
+
+    synchronized public boolean isMonarchistIncluded() {
+        return monarchistIncluded;
+    }
+
+    synchronized public void setMonarchistIncluded(boolean monarchistIncluded) {
+        this.monarchistIncluded = monarchistIncluded;
+    }
+
+    synchronized public boolean isAntiFascistPolicyIncluded() {
+        return antiFascistPolicyIncluded;
+    }
+
+    synchronized public void setAntiFascistPolicyIncluded(boolean antiFascistPolicyIncluded) {
+        this.antiFascistPolicyIncluded = antiFascistPolicyIncluded;
+    }
+
+    synchronized public boolean isAntiCommunistPolicyIncluded() {
+        return antiCommunistPolicyIncluded;
+    }
+
+    synchronized public void setAntiCommunistPolicyIncluded(boolean antiCommunistPolicyIncluded) {
+        this.antiCommunistPolicyIncluded = antiCommunistPolicyIncluded;
+    }
+
+    synchronized public boolean isSocialDemocraticPolicyIncluded() {
+        return socialDemocraticPolicyIncluded;
+    }
+
+    synchronized public void setSocialDemocraticPolicyIncluded(boolean socialDemocraticPolicyIncluded) {
+        this.socialDemocraticPolicyIncluded = socialDemocraticPolicyIncluded;
+    }
+
+    synchronized public boolean isLongerLiberalTrackIncluded() {
+        return longerLiberalTrackIncluded;
+    }
+
+    synchronized public void setLongerLiberalTrackIncluded(boolean longerLiberalTrackIncluded) {
+        this.longerLiberalTrackIncluded = longerLiberalTrackIncluded;
+    }
+
+    synchronized public int getEmergencyPowersIncluded() {
+        return emergencyPowersIncluded;
+    }
+
+    synchronized public void setEmergencyPowersIncluded(int emergencyPowersIncluded) {
+        this.emergencyPowersIncluded = emergencyPowersIncluded;
+    }
+
+    /**
+     * Sets all game mod options at once from a JSONObject, as sent by the
+     * client's game options form. Fields missing from {@code options} fall
+     * back to their vanilla defaults (disabled/0).
+     *
+     * @param options a JSONObject with (optional) boolean fields matching the
+     *                setters above, and an integer "emergencyPowersIncluded".
+     * @modifies this
+     * @effects updates the game mod settings for the next game started in
+     *          this lobby.
+     */
+    synchronized public void setGameOptions(JSONObject options) {
+        setCommunistsIncluded(options.optBoolean("communistsIncluded", false));
+        setAnarchistIncluded(options.optBoolean("anarchistIncluded", false));
+        setCapitalistIncluded(options.optBoolean("capitalistIncluded", false));
+        setMonarchistIncluded(options.optBoolean("monarchistIncluded", false));
+        setAntiFascistPolicyIncluded(options.optBoolean("antiFascistPolicyIncluded", false));
+        setAntiCommunistPolicyIncluded(options.optBoolean("antiCommunistPolicyIncluded", false));
+        setSocialDemocraticPolicyIncluded(options.optBoolean("socialDemocraticPolicyIncluded", false));
+        setLongerLiberalTrackIncluded(options.optBoolean("longerLiberalTrackIncluded", false));
+        setEmergencyPowersIncluded(options.optInt("emergencyPowersIncluded", 0));
+    }
+
+    /**
+     * Returns the current game mod settings as a JSONObject, so clients can
+     * render the lobby's configured options.
+     */
+    synchronized public JSONObject getGameOptionsJSON() {
+        JSONObject options = new JSONObject();
+        options.put("communistsIncluded", communistsIncluded);
+        options.put("anarchistIncluded", anarchistIncluded);
+        options.put("capitalistIncluded", capitalistIncluded);
+        options.put("monarchistIncluded", monarchistIncluded);
+        options.put("antiFascistPolicyIncluded", antiFascistPolicyIncluded);
+        options.put("antiCommunistPolicyIncluded", antiCommunistPolicyIncluded);
+        options.put("socialDemocraticPolicyIncluded", socialDemocraticPolicyIncluded);
+        options.put("longerLiberalTrackIncluded", longerLiberalTrackIncluded);
+        options.put("emergencyPowersIncluded", emergencyPowersIncluded);
+        return options;
+    }
+
+    // </editor-fold>
 
     /////// User Management
     // <editor-fold desc="User Management">
@@ -392,12 +522,43 @@ public class Lobby implements Serializable {
             message = new JSONObject();
             message.put(SecretHitlerServer.PARAM_PACKET_TYPE, SecretHitlerServer.PACKET_LOBBY);
             message.put("usernames", activeUsernames.toArray());
+            message.put(SecretHitlerServer.PARAM_GAME_OPTIONS, getGameOptionsJSON());
         }
         // Add user icons to the update message
         JSONObject icons = new JSONObject(usernameToIcon);
         message.put("icon", icons);
 
         ctx.send(message.toString());
+    }
+
+    /**
+     * Sends a raw JSON message directly to a specific user, if they are
+     * currently connected. Used for private reveals (e.g. investigations)
+     * that don't fit the general game-state update.
+     *
+     * @param username the username to send the message to.
+     * @param message  the JSONObject to send.
+     * @effects sends {@code message} to the WsContext associated with
+     *          {@code username}, if any is currently connected.
+     */
+    synchronized public void sendToUser(String username, JSONObject message) {
+        for (Map.Entry<WsContext, String> entry : userToUsername.entrySet()) {
+            if (entry.getValue().equals(username)) {
+                entry.getKey().send(message.toString());
+            }
+        }
+    }
+
+    /**
+     * Sends a raw JSON message to every user currently connected to this lobby.
+     *
+     * @param message the JSONObject to send.
+     * @effects sends {@code message} to every connected WsContext.
+     */
+    synchronized public void broadcast(JSONObject message) {
+        for (WsContext ctx : userToUsername.keySet()) {
+            ctx.send(message.toString());
+        }
     }
 
     /**
@@ -494,11 +655,15 @@ public class Lobby implements Serializable {
         usersInGame.clear();
         usersInGame.addAll(userToUsername.values());
 
-        // Generate CpuPlayers if the lobby size has not been met
+        // Generate CpuPlayers if the lobby size has not been met, topping up
+        // to whatever minimum the currently configured mod options require
+        // (e.g. Communists need 6+ players) rather than the vanilla minimum.
         List<String> cpuNames = new ArrayList<>();
         cpuPlayers.clear();
-        if (usersInGame.size() < SecretHitlerGame.MIN_PLAYERS) {
-            int numCpuPlayersToGenerate = SecretHitlerGame.MIN_PLAYERS - usersInGame.size();
+        int minPlayersNeeded = SecretHitlerGame.getMinPlayersForOptions(
+                communistsIncluded, anarchistIncluded, monarchistIncluded);
+        if (usersInGame.size() < minPlayersNeeded) {
+            int numCpuPlayersToGenerate = minPlayersNeeded - usersInGame.size();
             int i = 1;
             while (numCpuPlayersToGenerate > 0) {
                 String botName = "Bot " + i;
@@ -516,7 +681,11 @@ public class Lobby implements Serializable {
         playerNames.addAll(cpuNames);
         Collections.shuffle(playerNames);
 
-        game = new SecretHitlerGame(playerNames);
+        game = new SecretHitlerGame(
+            playerNames, communistsIncluded, anarchistIncluded, capitalistIncluded,
+            monarchistIncluded, antiFascistPolicyIncluded, antiCommunistPolicyIncluded,
+            socialDemocraticPolicyIncluded, longerLiberalTrackIncluded, emergencyPowersIncluded
+        );
 
         // Initialize all of the CpuPlayers
         for (CpuPlayer cpu : cpuPlayers) {

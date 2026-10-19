@@ -12,7 +12,9 @@ type AllowedWSCommandTypes =
   | WSCommandType.NOMINATE_CHANCELLOR
   | WSCommandType.REGISTER_EXECUTION
   | WSCommandType.REGISTER_SPECIAL_ELECTION
-  | WSCommandType.GET_INVESTIGATION;
+  | WSCommandType.GET_INVESTIGATION
+  | WSCommandType.REGISTER_IMPEACHMENT
+  | WSCommandType.REGISTER_MARK_FOR_EXECUTION;
 
 type SelectPlayerPromptProps = {
   user: string;
@@ -27,6 +29,7 @@ type SelectPlayerPromptProps = {
   headerText?: string;
   renderHeader?: () => ReactElement;
   buttonText?: string;
+  showNotHitlerLabel?: boolean;
 };
 
 const defaultProps: Partial<SelectPlayerPromptProps> = {
@@ -73,6 +76,7 @@ export default function SelectPlayerPrompt(
       buttonDisabled={isWaitingForServer}
       user={props.user}
       includeUser={props.includeUser}
+      showNotHitlerLabel={props.showNotHitlerLabel}
     />
   );
 }
@@ -119,6 +123,7 @@ export const SelectNominationPrompt = (
       }}
       disabledFilter={DISABLE_TERM_LIMITED_PLAYERS}
       includeUser={false}
+      showNotHitlerLabel={true}
     />
   );
 };
@@ -216,6 +221,50 @@ export const SelectExecutionPrompt = (
           </>
         );
       }}
+    />
+  );
+};
+
+// Secret Hitler XL mod prompts.
+
+export const SelectImpeachmentPrompt = (
+  user: string,
+  gameState: GameState,
+  sendWSCommand: SendWSCommand
+): ReactElement => {
+  return (
+    <SelectPlayerPrompt
+      user={user}
+      gameState={gameState}
+      sendWSCommand={sendWSCommand}
+      commandType={WSCommandType.REGISTER_IMPEACHMENT}
+      disabledFilter={DISABLE_EXECUTED_PLAYERS}
+      includeUser={false}
+      label={"IMPEACHMENT"}
+      headerText={
+        "Choose a player who will see the other officer's party membership."
+      }
+    />
+  );
+};
+
+export const SelectMarkForExecutionPrompt = (
+  user: string,
+  gameState: GameState,
+  sendWSCommand: SendWSCommand
+): ReactElement => {
+  return (
+    <SelectPlayerPrompt
+      user={user}
+      gameState={gameState}
+      sendWSCommand={sendWSCommand}
+      commandType={WSCommandType.REGISTER_MARK_FOR_EXECUTION}
+      disabledFilter={DISABLE_EXECUTED_PLAYERS}
+      includeUser={false}
+      label={"MARKED FOR EXECUTION"}
+      headerText={
+        "Choose a player to mark. They will be executed once 3 fascist policies have been enacted in total."
+      }
     />
   );
 };

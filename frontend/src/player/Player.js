@@ -10,8 +10,13 @@ import PlayerBase from "../assets/player-base.png"
 import IconFascist from "../assets/player-icon-fascist.png";
 import IconHitler from "../assets/player-icon-hitler.png";
 import IconLiberal from "../assets/player-icon-liberal.png";
+import IconCommunist from "../assets/player-icon-communist.png";
+import IconAnarchist from "../assets/player-icon-anarchist.png";
+import IconCapitalist from "../assets/player-icon-capitalist.png";
+import IconMonarchist from "../assets/player-icon-monarchist.png";
 
 import IconBusy from "../assets/player-icon-busy.png";
+import IconExecutionMark from "../assets/icon-execution.png";
 
 import YesVote from "../assets/player-icon-ja.png";
 import NoVote from "../assets/player-icon-nein.png";
@@ -20,6 +25,10 @@ import portraits, {portraitsAltText} from "../assets";
 const LIBERAL = "LIBERAL";
 const FASCIST = "FASCIST";
 const HITLER = "HITLER";
+const COMMUNIST = "COMMUNIST";
+const ANARCHIST = "ANARCHIST";
+const CAPITALIST = "CAPITALIST";
+const MONARCHIST = "MONARCHIST";
 
 /**
  * A visual representation of a player, including their name and (optionally) their role.
@@ -44,6 +53,14 @@ class Player extends Component {
                 return IconLiberal;
             case FASCIST:
                 return IconFascist;
+            case COMMUNIST:
+                return IconCommunist;
+            case ANARCHIST:
+                return IconAnarchist;
+            case CAPITALIST:
+                return IconCapitalist;
+            case MONARCHIST:
+                return IconMonarchist;
             case HITLER:
             default:
                 return IconHitler;
@@ -64,10 +81,23 @@ class Player extends Component {
      * @return {string} " liberal-text" if the role is LIBERAL. Otherwise, returns "".
      */
     getRoleClass() {
-        if(this.props.role === LIBERAL) {
-            return " liberal-text";
-        } else {
-            return "";
+        switch (this.props.role) {
+            case LIBERAL:
+                return " liberal-text";
+            case COMMUNIST:
+                return " communist-text";
+            case ANARCHIST:
+                return " anarchist-text";
+            case CAPITALIST:
+                return " capitalist-text";
+            // Fascist, Hitler, and the Monarchist all render in the same
+            // brick-red in their icon art (see --textColorFascistPolicy).
+            case FASCIST:
+            case HITLER:
+            case MONARCHIST:
+                return " fascist-policy-text";
+            default:
+                return "";
         }
     }
 
@@ -185,6 +215,14 @@ class Player extends Component {
                      alt=""
                 />
 
+                {this.props.isMarkedForExecution &&
+                    <img id="player-execution-mark-icon"
+                         src={IconExecutionMark}
+                         alt="Marked for execution"
+                         title="Marked for execution"
+                    />
+                }
+
                 <img
                     id={"player-icon-vote"}
                     className={this.state.initialVoteState ? "player-icon-default" : (this.props.showVote ? "player-icon-show" : "player-icon-hide")}
@@ -203,6 +241,21 @@ class Player extends Component {
                 >
                     {this.props.name}
                 </Textfit>
+
+                {this.props.isHost &&
+                    <p id="player-host-label" className={this.getClassName()}>
+                        HOST
+                    </p>
+                }
+
+                {(this.props.confirmedNotHitler || this.props.confessionDeniedParty) &&
+                    <div id="player-top-banner" className={this.getClassName()}>
+                        {this.props.confirmedNotHitler && <p>NOT HITLER</p>}
+                        {this.props.confessionDeniedParty &&
+                            <p>NOT {this.props.confessionDeniedParty}</p>
+                        }
+                    </div>
+                }
 
                 <p  id="player-disabled-label"
                     hidden={!this.props.disabled}
@@ -230,6 +283,10 @@ Player.defaultProps = {
     showVote: false,
     vote: false,
     icon: "p_default",
+    isHost: false,
+    isMarkedForExecution: false,
+    confessionDeniedParty: undefined,
+    confirmedNotHitler: false,
 };
 
 Player.propTypes = {
@@ -246,6 +303,10 @@ Player.propTypes = {
     showVote: PropTypes.bool,
     vote: PropTypes.bool,
     icon: PropTypes.string,
+    isHost: PropTypes.bool,
+    isMarkedForExecution: PropTypes.bool,
+    confessionDeniedParty: PropTypes.string,
+    confirmedNotHitler: PropTypes.bool,
 };
 
 export default Player;

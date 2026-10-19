@@ -25,7 +25,7 @@ class LoginPageContent extends Component {
         let items = [
             <img id={"login-page-gif"} src={'https://i.postimg.cc/zvnLRbqq/place-policy.gif'} onDragStart={handleDragStart} alt={"A policy tile being placed on the board."}/>,
             <img id={"login-page-gif"} src={'https://i.postimg.cc/Wbvqcn7z/show-policy.gif'} onDragStart={handleDragStart} alt={"An animated folder revealing a policy tile."}/>,
-            <img id={"login-page-gif"} src={'https://i.postimg.cc/cCNCZxw2/show-votes.gif'} onDragStart={handleDragStart} alt={"An animation showing all the cast votes."}/>
+            <img id={"login-page-gif"} src={'https://i.postimg.cc/cCNCZxw2/show-votes.gif'} onDragStart={handleDragStart} alt={"An animation showing all the cast votes."}/>,
         ];
         return (
             <>

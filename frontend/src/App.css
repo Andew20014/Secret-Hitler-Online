@@ -85,6 +85,30 @@ a {
     color: var(--textColorLiberal);
 }
 
+.highlight-communist {
+    color: var(--textColorCommunist);
+}
+
+.highlight-anarchist {
+    color: var(--textColorAnarchist);
+}
+
+.highlight-capitalist {
+    color: var(--textColorCapitalist);
+}
+
+/* Fascist, Hitler, Monarchist, and the Anti-Communist policy all render in
+   the same brick-red in their source icon/card art. */
+.highlight-fascist-policy {
+    color: var(--textColorFascistPolicy);
+}
+
+/* Anarchist and the Article 48/Enabling Act emergency powers all render in
+   near-black ink in their source icon/card art. */
+.highlight-emergency-power {
+    color: var(--textColorAnarchist);
+}
+
 /* Credit to https://designtheway.com/css-buttons/ for the CSS source code.*/
 button {
     background:transparent;

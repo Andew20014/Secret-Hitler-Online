@@ -9,5 +9,10 @@ public enum PresidentialPower {
     PEEK,
     INVESTIGATE,
     EXECUTION,
-    ELECTION
+    ELECTION,
+    COMMUNISTS_INVESTIGATION,
+    CONFESSION,
+    FIVE_YEAR_PLAN,
+    CONGRESS,
+    RADICALIZATION,
 }

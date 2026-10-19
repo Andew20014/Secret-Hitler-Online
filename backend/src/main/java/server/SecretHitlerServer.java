@@ -1,6 +1,10 @@
 package server;
 
+import game.GameState;
+import game.SecretHitlerGame;
 import game.datastructures.Identity;
+import game.datastructures.Player;
+import game.datastructures.Policy;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.websocket.WsCloseContext;
@@ -39,6 +43,10 @@ public class SecretHitlerServer {
     public static final String PARAM_VETO = "veto";
     public static final String PARAM_CHOICE = "choice"; // the index of the chosen policy.
     public static final String PARAM_ICON = "icon";
+    public static final String PARAM_GAME_OPTIONS = "gameOptions";
+    public static final String PARAM_TRACKER_TYPE = "trackerType"; // "FASCIST" or "COMMUNIST", for the social democratic power.
+    public static final String PARAM_DISCARD = "discard"; // boolean, for the propaganda power.
+    public static final String PARAM_DENIED_PARTY = "deniedParty"; // "LIBERAL"/"FASCIST"/"COMMUNIST", for the confession power.
 
     // Passed to client
     // The type of the packet tells the client how to parse the contents.
@@ -58,6 +66,7 @@ public class SecretHitlerServer {
     public static final String COMMAND_START_GAME = "start-game";
     public static final String COMMAND_GET_STATE = "get-state";
     public static final String COMMAND_SET_LOBBY_SIZE = "set-lobby-size";
+    public static final String COMMAND_SET_GAME_OPTIONS = "set-game-options";
     public static final String COMMAND_SELECT_ICON = "select-icon";
     public static final String COMMAND_NOMINATE_CHANCELLOR = "nominate-chancellor";
     public static final String COMMAND_REGISTER_VOTE = "register-vote";
@@ -72,6 +81,20 @@ public class SecretHitlerServer {
     public static final String COMMAND_REGISTER_PEEK = "register-peek";
 
     public static final String COMMAND_END_TERM = "end-term";
+
+    // Secret Hitler XL mod commands.
+    // The Communist Investigation and Radicalization powers are resolved by
+    // unanimous vote among the alive communists (see castCommunistVote()),
+    // rather than a single communist unilaterally picking a target.
+    public static final String COMMAND_CAST_COMMUNIST_VOTE = "cast-communist-vote";
+    public static final String COMMAND_RETRACT_COMMUNIST_VOTE = "retract-communist-vote";
+    public static final String COMMAND_REGISTER_CONFESSION = "register-confession";
+    public static final String COMMAND_REGISTER_FIVE_YEAR_PLAN = "register-five-year-plan";
+    public static final String COMMAND_END_CONGRESS = "end-congress";
+    public static final String COMMAND_REGISTER_SOCIAL_DEMOCRATIC = "register-social-democratic";
+    public static final String COMMAND_REGISTER_PROPAGANDA_DISCARD = "register-propaganda-discard";
+    public static final String COMMAND_REGISTER_IMPEACHMENT = "register-impeachment";
+    public static final String COMMAND_REGISTER_MARK_FOR_EXECUTION = "register-mark-for-execution";
 
     private static final String CODE_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTWXYZ"; // u,v characters can look ambiguous
     private static final int CODE_LENGTH = 4;
@@ -137,6 +160,13 @@ public class SecretHitlerServer {
         serverApp.get("/check-login", SecretHitlerServer::checkLogin); // Checks if a login is valid.
         serverApp.get("/new-lobby", SecretHitlerServer::createNewLobby); // Creates and returns the code for a new lobby
         serverApp.get("/ping", SecretHitlerServer::ping);
+
+        if (ApplicationConfig.DEBUG) {
+            // Local-dev-only: exposes the true draw/discard deck order for a
+            // live game, so it can be inspected while playtesting without
+            // spoiling anything for real players in production.
+            serverApp.get("/debug/deck", SecretHitlerServer::debugDeck);
+        }
 
         serverApp.ws("/game", wsHandler -> {
             wsHandler.onConnect(SecretHitlerServer::onWebsocketConnect);
@@ -370,6 +400,57 @@ public class SecretHitlerServer {
     public static void ping(Context ctx) {
         ctx.status(200);
         ctx.result("OK");
+    }
+
+    /**
+     * Local-dev-only debug endpoint: returns the true, ordered contents of
+     * a live game's draw deck and discard pile, for playtesting.
+     *
+     * @param ctx the context of the request.
+     * @requires the context must have a {@code lobby} query parameter.
+     * @effects Result status is one of the following:
+     *          <p>
+     *          - 400: if the {@code lobby} parameter is missing, or that
+     *          lobby's game hasn't started yet.
+     *          <p>
+     *          - 404: if there is no lobby with the given code.
+     *          <p>
+     *          - 200: Success. The response body is a JSON object with
+     *          {@code drawDeck} and {@code discardPile}, each an ordered
+     *          array of Policy type names (index 0 is, respectively, the
+     *          next card to be drawn and the most recently discarded card).
+     */
+    public static void debugDeck(Context ctx) {
+        String lobbyCode = ctx.queryParam(PARAM_LOBBY);
+        if (lobbyCode == null) {
+            ctx.status(400);
+            ctx.result("The lobby parameter must be specified.");
+            return;
+        }
+        if (!codeToLobby.containsKey(lobbyCode)) {
+            ctx.status(404);
+            ctx.result("No such lobby found.");
+            return;
+        }
+
+        Lobby lobby = codeToLobby.get(lobbyCode);
+        if (!lobby.isInGame()) {
+            ctx.status(400);
+            ctx.result("That lobby's game hasn't started yet.");
+            return;
+        }
+        SecretHitlerGame game = lobby.game();
+
+        JSONObject out = new JSONObject();
+        out.put("drawDeck", game.getDrawDeckOrder());
+        out.put("discardPile", game.getDiscardPileOrder());
+        ctx.status(200);
+        // ctx.json() would hand this org.json.JSONObject to Javalin's own
+        // (Jackson) serializer, which doesn't know it's already JSON and
+        // instead reflects over its bean-style getters (isEmpty(), etc.).
+        // Serializing it ourselves and setting the content type avoids that.
+        ctx.contentType("application/json");
+        ctx.result(out.toString());
     }
 
     /**
@@ -656,7 +737,7 @@ public class SecretHitlerServer {
                         break;
 
                     case COMMAND_REGISTER_EXECUTION: // params: PARAM_TARGET (String)
-                        verifyIsPresident(name, lobby);
+                        verifyIsActingOfficer(name, lobby);
                         lobby.game().executePlayer(message.getString(PARAM_TARGET));
                         break;
 
@@ -665,23 +746,16 @@ public class SecretHitlerServer {
                         lobby.game().electNextPresident(message.getString(PARAM_TARGET));
                         break;
 
-                    case COMMAND_GET_INVESTIGATION: // params: PARAM_TARGET (String)
+                    case COMMAND_GET_INVESTIGATION: { // params: PARAM_TARGET (String)
                         verifyIsPresident(name, lobby);
-                        Identity id = lobby.game().investigatePlayer(message.getString(PARAM_TARGET));
-                        // Construct and send a JSONObject.
-                        JSONObject obj = new JSONObject();
-                        obj.put(PARAM_PACKET_TYPE, PACKET_INVESTIGATION);
-                        if (id == Identity.FASCIST) {
-                            obj.put(PARAM_INVESTIGATION, FASCIST);
-                        } else {
-                            obj.put(PARAM_INVESTIGATION, LIBERAL);
-                        }
-                        obj.put(PARAM_TARGET, message.getString(PARAM_TARGET));
-                        ctx.send(obj.toString());
+                        String target = message.getString(PARAM_TARGET);
+                        Identity id = lobby.game().investigatePlayer(target);
+                        ctx.send(buildInvestigationPacket(id, target).toString());
                         break;
+                    }
 
                     case COMMAND_REGISTER_PEEK:
-                        verifyIsPresident(name, lobby);
+                        verifyIsActingOfficer(name, lobby);
                         lobby.game().endPeek();
                         break;
 
@@ -693,6 +767,68 @@ public class SecretHitlerServer {
                     case COMMAND_SELECT_ICON:
                         String iconId = message.getString(PARAM_ICON);
                         lobby.trySetUserIcon(iconId, ctx);
+                        break;
+
+                    case COMMAND_SET_GAME_OPTIONS: // params: PARAM_GAME_OPTIONS (JSONObject)
+                        if (lobby.isInGame()) {
+                            throw new RuntimeException("Cannot change game options while a game is in progress.");
+                        }
+                        lobby.setGameOptions(message.getJSONObject(PARAM_GAME_OPTIONS));
+                        break;
+
+                    case COMMAND_CAST_COMMUNIST_VOTE: { // params: PARAM_TARGET (String)
+                        verifyIsCommunist(name, lobby);
+                        lobby.game().castCommunistVote(name, message.getString(PARAM_TARGET));
+                        resolveCommunistVoteIfUnanimous(lobby, name);
+                        break;
+                    }
+
+                    case COMMAND_RETRACT_COMMUNIST_VOTE: // no params
+                        verifyIsCommunist(name, lobby);
+                        lobby.game().retractCommunistVote(name);
+                        break;
+
+                    case COMMAND_REGISTER_CONFESSION: // params: PARAM_DENIED_PARTY (String)
+                        verifyIsPresident(name, lobby);
+                        lobby.game().confession(name, Identity.valueOf(message.getString(PARAM_DENIED_PARTY)));
+                        break;
+
+                    case COMMAND_REGISTER_FIVE_YEAR_PLAN:
+                        verifyIsPresident(name, lobby);
+                        lobby.game().fiveYearPlan();
+                        break;
+
+                    case COMMAND_END_CONGRESS:
+                        verifyIsPresident(name, lobby);
+                        lobby.game().endCongress();
+                        break;
+
+                    case COMMAND_REGISTER_SOCIAL_DEMOCRATIC: // params: PARAM_TRACKER_TYPE (String)
+                        verifyIsPresident(name, lobby);
+                        lobby.game().socialDemocraticRemovePolicy(
+                                Policy.Type.valueOf(message.getString(PARAM_TRACKER_TYPE)));
+                        break;
+
+                    case COMMAND_REGISTER_PROPAGANDA_DISCARD: // params: PARAM_DISCARD (boolean)
+                        verifyIsActingOfficer(name, lobby);
+                        lobby.game().propagandaDiscard(message.getBoolean(PARAM_DISCARD));
+                        break;
+
+                    case COMMAND_REGISTER_IMPEACHMENT: { // params: PARAM_TARGET (String, the chosen viewer)
+                        verifyIsActingOfficer(name, lobby);
+                        String viewer = message.getString(PARAM_TARGET);
+                        String actingOfficer = lobby.game().getEmergencyPowerActingOfficer();
+                        String impeachedOfficer = actingOfficer.equals(lobby.game().getCurrentPresident())
+                                ? lobby.game().getCurrentChancellor()
+                                : lobby.game().getCurrentPresident();
+                        Identity impeachedId = lobby.game().impeach(viewer);
+                        lobby.sendToUser(viewer, buildInvestigationPacket(impeachedId, impeachedOfficer));
+                        break;
+                    }
+
+                    case COMMAND_REGISTER_MARK_FOR_EXECUTION: // params: PARAM_TARGET (String)
+                        verifyIsActingOfficer(name, lobby);
+                        lobby.game().markForExecution(message.getString(PARAM_TARGET));
                         break;
 
                     default: // This is an invalid command.
@@ -749,6 +885,87 @@ public class SecretHitlerServer {
         if (!lobby.game().getCurrentChancellor().equals(name)) {
             throw new RuntimeException("The player '" + name + "' is not currently chancellor.");
         }
+    }
+
+    /**
+     * Verifies that the user is a communist.
+     *
+     * @param name  String name of the user.
+     * @param lobby the Lobby that the game is in.
+     * @throws RuntimeException if the user is not a communist.
+     */
+    private static void verifyIsCommunist(String name, Lobby lobby) {
+        if (!lobby.game().getPlayer(name).isCommunist()) {
+            throw new RuntimeException("The player '" + name + "' is not a communist.");
+        }
+    }
+
+    /**
+     * Verifies that the user is authorized to act on the currently active
+     * presidential power. This is usually the President, except while an
+     * Enabling Act emergency power is being resolved (Execution/Peek/etc.),
+     * in which case the Chancellor is the acting officer instead.
+     *
+     * @param name  String name of the user.
+     * @param lobby the Lobby that the game is in.
+     * @throws RuntimeException if the user is not the acting officer.
+     */
+    private static void verifyIsActingOfficer(String name, Lobby lobby) {
+        String emergencyOfficer = lobby.game().getEmergencyPowerActingOfficer();
+        String expected = emergencyOfficer != null ? emergencyOfficer : lobby.game().getCurrentPresident();
+        if (!expected.equals(name)) {
+            throw new RuntimeException("The player '" + name + "' is not authorized to act on this power.");
+        }
+    }
+
+    /**
+     * If every alive communist has just voted for the same target, resolves
+     * that into the actual Radicalization or Communist Investigation power
+     * (using {@code resolvingVoter} for the "acting communist" identity
+     * check, which is already guaranteed to pass at this point) and clears
+     * the vote. For a Communist Investigation, also sends the result to
+     * every communist, mirroring the old single-communist-picks-a-target
+     * flow's broadcast.
+     *
+     * @param lobby          the lobby whose game just received a vote.
+     * @param resolvingVoter the communist whose vote was just cast (used
+     *                       only as a valid communist username to satisfy
+     *                       the underlying power's own validation).
+     */
+    private static void resolveCommunistVoteIfUnanimous(Lobby lobby, String resolvingVoter) {
+        SecretHitlerGame game = lobby.game();
+        String target = game.getUnanimousCommunistVoteTarget();
+        if (target == null) {
+            return;
+        }
+        game.clearCommunistVotes();
+
+        if (game.getState() == GameState.PRESIDENTIAL_POWER_RADICALIZATION) {
+            game.radicalization(target, resolvingVoter);
+        } else if (game.getState() == GameState.PRESIDENTIAL_POWER_COMMUNISTS_INVESTIGATION) {
+            Identity id = game.communistsInvestigatePlayer(target, resolvingVoter);
+            JSONObject investigationMsg = buildInvestigationPacket(id, target);
+            for (Player p : game.getPlayerList()) {
+                if (p.isCommunist()) {
+                    lobby.sendToUser(p.getUsername(), investigationMsg);
+                }
+            }
+        }
+    }
+
+    /**
+     * Builds a packet revealing a player's party identity to whoever receives it.
+     *
+     * @param id     the Identity to reveal.
+     * @param target the username whose identity is being revealed.
+     * @return a JSONObject of type {@code PACKET_INVESTIGATION}.
+     */
+    private static JSONObject buildInvestigationPacket(Identity id, String target) {
+        JSONObject obj = new JSONObject();
+        obj.put(PARAM_PACKET_TYPE, PACKET_INVESTIGATION);
+        obj.put(PARAM_INVESTIGATION, id.toString());
+        obj.put(PARAM_TARGET, target);
+        return obj;
     }
 
     /**

@@ -4,5 +4,9 @@ public enum Identity {
     UNASSIGNED,
     HITLER,
     FASCIST,
-    LIBERAL
+    LIBERAL,
+    COMMUNIST,
+    ANARCHIST,
+    CAPITALIST,
+    MONARCHIST,
 }

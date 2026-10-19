@@ -50,6 +50,28 @@ import {
   SERVER_PING,
   PARAM_ICON,
   PARAM_INVESTIGATION,
+  PARAM_GAME_OPTIONS,
+  STATE_PP_COMMUNISTS_INVESTIGATION,
+  STATE_PP_CONFESSION,
+  STATE_PP_FIVE_YEAR_PLAN,
+  STATE_PP_CONGRESS,
+  STATE_PP_RADICALIZATION,
+  STATE_PP_SOCIAL_DEMOCRATIC,
+  STATE_PP_PROPAGANDA,
+  STATE_PP_IMPEACHMENT,
+  STATE_PP_MARK_FOR_EXECUTION,
+  STATE_COMMUNIST_VICTORY_POLICY,
+  STATE_COMMUNIST_WITH_LIBERAL_VICTORY_EXECUTION,
+  STATE_ANARCHIST_VICTORY_POLICY,
+  STATE_ANARCHIST_WITH_COMMUNIST_VICTORY_POLICY,
+  STATE_CAPITALIST_VICTORY_WITH_LIBERAL_POLICY,
+  STATE_CAPITALIST_VICTORY_WITH_LIBERAL_EXECUTION,
+  STATE_CAPITALIST_VICTORY_WITH_FASCIST_POLICY,
+  STATE_CAPITALIST_VICTORY_WITH_FASCIST_ELECTION,
+  STATE_MONARCHIST_VICTORY_WITH_FASCIST_ELECTION,
+  STATE_MONARCHIST_AND_CAPITALIST_VICTORY_WITH_FASCIST_ELECTION,
+  STATE_MONARCHIST_VICTORY_WITH_FASCIST_POLICY,
+  STATE_MONARCHIST_AND_CAPITALIST_VICTORY_WITH_FASCIST_POLICY,
 } from "./constants";
 
 import PlayerDisplay, {
@@ -64,12 +86,22 @@ import ChancellorLegislativePrompt from "./custom-alert/ChancellorLegislativePro
 import VetoPrompt from "./custom-alert/VetoPrompt";
 import ElectionTrackerAlert from "./custom-alert/ElectionTrackerAlert";
 import PolicyEnactedAlert from "./custom-alert/PolicyEnactedAlert";
+import CommunistVotePanel from "./custom-alert/CommunistVotePanel";
 import {
   SelectExecutionPrompt,
   SelectInvestigationPrompt,
   SelectNominationPrompt,
   SelectSpecialElectionPrompt,
+  SelectImpeachmentPrompt,
+  SelectMarkForExecutionPrompt,
 } from "./custom-alert/SelectPlayerPrompt";
+import {
+  FiveYearPlanPrompt,
+  CongressPrompt,
+} from "./custom-alert/SimpleActionPrompt";
+import ConfessionPrompt from "./custom-alert/ConfessionPrompt";
+import SocialDemocraticPrompt from "./custom-alert/SocialDemocraticPrompt";
+import PropagandaPrompt from "./custom-alert/PropagandaPrompt";
 import ButtonPrompt from "./custom-alert/ButtonPrompt";
 import PeekPrompt from "./custom-alert/PeekPrompt";
 import InvestigationAlert from "./custom-alert/InvestigationAlert";
@@ -86,13 +118,17 @@ import LoginPageContent from "./LoginPageContent";
 import Cookies from "js-cookie";
 import AnnouncementBox from "./util/AnnouncementBox";
 import {
+  GameOptions,
+  DEFAULT_GAME_OPTIONS,
   GameState,
   LobbyState,
+  PolicyType,
   Role,
   ServerRequestPayload,
   WSCommand,
   WSCommandType,
 } from "./types";
+import LobbySettings from "./lobby/LobbySettings";
 
 const EVENT_BAR_FADE_OUT_DURATION = 500;
 const CUSTOM_ALERT_FADE_DURATION = 1000;
@@ -100,6 +136,31 @@ const CUSTOM_ALERT_FADE_DURATION = 1000;
 const DEFAULT_GAME_STATE: GameState = {
   liberalPolicies: 0,
   fascistPolicies: 0,
+  communistPolicies: 0,
+  anarchistPolicies: 0,
+  liberalTrackerHistory: [],
+  fascistTrackerHistory: [],
+  communistTrackerHistory: [],
+  emergencyPowerTrackerHistory: [],
+  remainingFascistPolicies: 11,
+  remainingLiberalPolicies: 6,
+  remainingCommunistPolicies: 0,
+  remainingAnarchistPolicies: 0,
+  remainingAntiFascistPolicies: 0,
+  remainingAntiCommunistPolicies: 0,
+  remainingSocialDemocraticPolicies: 0,
+  remainingArticle48Policies: 0,
+  remainingEnablingActPolicies: 0,
+  roleCounts: {},
+  communistsIncluded: false,
+  anarchistIncluded: false,
+  capitalistIncluded: false,
+  monarchistIncluded: false,
+  antiFascistPolicyIncluded: false,
+  antiCommunistPolicyIncluded: false,
+  socialDemocraticPolicyIncluded: false,
+  longerLiberalTrackIncluded: false,
+  emergencyPowersIncluded: 0,
   discardSize: 0,
   drawSize: 17,
   players: {},
@@ -120,6 +181,35 @@ const DEFAULT_GAME_STATE: GameState = {
   lastPolicy: "",
   peek: [],
   icon: {},
+};
+
+// Human-readable messages for the Secret Hitler XL mod's victory states,
+// used until each one has a dedicated victory screen.
+const XL_VICTORY_MESSAGES: Record<string, string> = {
+  [STATE_COMMUNIST_VICTORY_POLICY]:
+    "The Communists enacted enough policies to win!",
+  [STATE_COMMUNIST_WITH_LIBERAL_VICTORY_EXECUTION]:
+    "Hitler was executed — the Liberals and Communists win!",
+  [STATE_ANARCHIST_VICTORY_POLICY]:
+    "An Anarchist policy was forced through the election tracker — the Anarchist wins!",
+  [STATE_ANARCHIST_WITH_COMMUNIST_VICTORY_POLICY]:
+    "The Communists won, with the Anarchist's help!",
+  [STATE_CAPITALIST_VICTORY_WITH_LIBERAL_POLICY]:
+    "The Liberals won, and the Capitalist wins alongside them!",
+  [STATE_CAPITALIST_VICTORY_WITH_LIBERAL_EXECUTION]:
+    "Hitler was executed — the Liberals and the Capitalist win!",
+  [STATE_CAPITALIST_VICTORY_WITH_FASCIST_POLICY]:
+    "The Fascists won, and the Capitalist wins alongside them!",
+  [STATE_CAPITALIST_VICTORY_WITH_FASCIST_ELECTION]:
+    "The Fascists elected Hitler chancellor — the Capitalist wins too!",
+  [STATE_MONARCHIST_VICTORY_WITH_FASCIST_ELECTION]:
+    "The Fascists elected Hitler chancellor — the Monarchist's plot failed.",
+  [STATE_MONARCHIST_AND_CAPITALIST_VICTORY_WITH_FASCIST_ELECTION]:
+    "The Fascists elected Hitler chancellor — the Capitalist wins, but the Monarchist's plot failed.",
+  [STATE_MONARCHIST_VICTORY_WITH_FASCIST_POLICY]:
+    "The Fascists won by policy — the Monarchist wins too!",
+  [STATE_MONARCHIST_AND_CAPITALIST_VICTORY_WITH_FASCIST_POLICY]:
+    "The Fascists won by policy — the Monarchist and Capitalist both win!",
 };
 
 const COOKIE_NAME = "name";
@@ -146,11 +236,14 @@ type AppState = {
   lobbyFromURL: boolean;
   usernames: string[];
   icons: { [key: string]: string };
+  gameOptions: GameOptions;
   gameState: GameState;
   /* Stores the last gameState[PARAM_STATE] value to check for changes. */
   lastState: any;
   liberalPolicies: number;
   fascistPolicies: number;
+  liberalTrackerHistory: PolicyType[];
+  fascistTrackerHistory: PolicyType[];
   /*The position of the election tracker, ranging from 0 to 3.*/
   electionTracker: number;
   showVotes: boolean;
@@ -177,10 +270,13 @@ const defaultAppState: AppState = {
   lobbyFromURL: false,
   usernames: [],
   icons: {},
+  gameOptions: DEFAULT_GAME_OPTIONS,
   gameState: DEFAULT_GAME_STATE,
   lastState: {},
   liberalPolicies: 0,
   fascistPolicies: 0,
+  liberalTrackerHistory: [],
+  fascistTrackerHistory: [],
   electionTracker: 0,
   showVotes: false,
   drawDeckSize: 17,
@@ -428,6 +524,7 @@ class App extends Component<{}, AppState> {
         this.setState({
           usernames: message[PARAM_USERNAMES],
           icons: message[PARAM_ICON],
+          gameOptions: message[PARAM_GAME_OPTIONS] ?? DEFAULT_GAME_OPTIONS,
           page: PAGE.LOBBY,
         });
         if (message[PARAM_ICON][this.state.name] === defaultPortrait) {
@@ -775,7 +872,8 @@ class App extends Component<{}, AppState> {
       return (
         <Player
           key={i}
-          name={i === 0 ? name : name + " [Host]"}
+          name={name}
+          isHost={i === 0}
           showRole={false}
           icon={this.state.icons[name]}
           isBusy={this.state.icons[name] === defaultPortrait}
@@ -801,9 +899,6 @@ class App extends Component<{}, AppState> {
           playerToIcon={this.state.icons}
           players={this.state.usernames}
           user={this.state.name}
-          onClickTweet={() => {
-            ReactGA.event({ category: "Sharing", action: "User shared tweet" });
-          }}
         />
       ),
     });
@@ -824,6 +919,10 @@ class App extends Component<{}, AppState> {
         return false;
       }
     }
+    // Note: we don't block starting when there are fewer players than the
+    // configured mod options require - the server fills any remaining seats
+    // with CPU bots (matching the existing vanilla "play solo against bots"
+    // behavior), so this is never actually blocked.
     return true;
   }
 
@@ -942,6 +1041,12 @@ class App extends Component<{}, AppState> {
               </button>
               <button onClick={this.onClickLeaveLobby}>LEAVE LOBBY</button>
             </div>
+            <LobbySettings
+              isVIP={isVIP}
+              gameOptions={this.state.gameOptions}
+              numPlayers={this.state.usernames.length}
+              sendWSCommand={this.sendWSCommand}
+            />
             <div id={"lobby-text-container"}>
               <p id={"lobby-about-text"}>
                 <a
@@ -1019,6 +1124,83 @@ class App extends Component<{}, AppState> {
   }
 
   /**
+   * Shows the target of a just-resolved Radicalization power their own
+   * result: either that they've become a Communist, or - if they're Hitler
+   * or the Capitalist - that they resisted. Only the target sees this;
+   * telling them doesn't leak anything since they already know their own
+   * true identity. Nobody else is shown anything (the Communists don't
+   * learn whether it worked).
+   */
+  showRadicalizationResult(name: string, newState: GameState): void {
+    if (name !== newState.targetUser) {
+      return;
+    }
+    let becameCommunist = newState.players[name].id === Role.COMMUNIST;
+    if (becameCommunist) {
+      this.queueAlert(
+        <ButtonPrompt
+          label={"YOU HAVE BEEN RADICALIZED"}
+          headerText={
+            "The Communists have swapped your party membership card - you are now a Communist."
+          }
+          buttonOnClick={this.hideAlertAndFinish}
+        />,
+        false
+      );
+    } else {
+      this.queueAlert(
+        <ButtonPrompt
+          label={"RADICALIZATION ATTEMPT"}
+          headerText={
+            "The Communists just tried to turn you into one of their own, but your true identity protected you. They don't know it failed."
+          }
+          buttonOnClick={this.hideAlertAndFinish}
+        />,
+        false
+      );
+    }
+  }
+
+  /**
+   * Shows every Communist their fellow Communists once Congress resolves.
+   * Nobody else sees anything. If a Radicalization target silently resisted
+   * (Hitler or the Capitalist), they won't be on this list - the footer
+   * explains that so the Communists don't mistake it for a bug.
+   */
+  showCongressResult(name: string, newState: GameState): void {
+    if (newState.players[name].id !== Role.COMMUNIST) {
+      return;
+    }
+    let fellowCommunists = newState.playerOrder.filter(
+      (username) =>
+        username !== name && newState.players[username].id === Role.COMMUNIST
+    );
+    this.queueAlert(
+      <ButtonPrompt
+        label={"CONGRESS"}
+        headerText={
+          fellowCommunists.length > 0
+            ? "You now recognize your fellow Communists:"
+            : "You don't recognize any other Communists - you may be the only one so far."
+        }
+        footerText={
+          "If someone the Communists tried to radicalize isn't on this list, the attempt silently failed - they were Hitler or the Capitalist, protected by their true identity."
+        }
+        buttonOnClick={this.hideAlertAndFinish}
+        buttonText={"OKAY"}
+      >
+        <PlayerDisplay
+          user={name}
+          gameState={newState}
+          showLabels={false}
+          players={fellowCommunists}
+        />
+      </ButtonPrompt>,
+      false
+    );
+  }
+
+  /**
    * Queues animations for when the game state has changed.
    * @param newState {Object} the new game state sent from the server.
    */
@@ -1027,6 +1209,12 @@ class App extends Component<{}, AppState> {
     let name = this.state.name;
     let isPresident = this.state.name === newState.president;
     let isChancellor = this.state.name === newState.chancellor;
+    // Execution/Peek are normally resolved by the President, but when
+    // selected via the Enabling Act emergency power, the Chancellor acts
+    // instead.
+    let isActingOfficer = newState.emergencyPowerActingOfficer
+      ? this.state.name === newState.emergencyPowerActingOfficer
+      : isPresident;
     let state = newState.state;
 
     // If last state was setup, which indicates that the client is re-entering the game or starting the game, then
@@ -1038,6 +1226,8 @@ class App extends Component<{}, AppState> {
       this.setState({
         liberalPolicies: newState.liberalPolicies,
         fascistPolicies: newState.fascistPolicies,
+        liberalTrackerHistory: newState.liberalTrackerHistory,
+        fascistTrackerHistory: newState.fascistTrackerHistory,
         electionTracker: newState.electionTracker,
         drawDeckSize: newState.drawSize,
         discardDeckSize: newState.discardSize,
@@ -1053,6 +1243,24 @@ class App extends Component<{}, AppState> {
       LobbyState.PP_PEEK,
       LobbyState.FASCIST_VICTORY_POLICY,
       LobbyState.LIBERAL_VICTORY_POLICY,
+      // Emergency power cards resolve straight into one of these
+      // power-specific states (rather than POST_LEGISLATIVE) - without
+      // listing them here too, enacting Propaganda/Impeachment/Marked For
+      // Execution never shows a "POLICY ENACTED" alert at all.
+      LobbyState.PP_PROPAGANDA,
+      LobbyState.PP_IMPEACHMENT,
+      LobbyState.PP_MARK_FOR_EXECUTION,
+      // Same issue for the Communist tracker's own powers - without these,
+      // enacting a Communist policy that triggers one of them never shows a
+      // "POLICY ENACTED" alert either.
+      LobbyState.PP_COMMUNISTS_INVESTIGATION,
+      LobbyState.PP_RADICALIZATION,
+      LobbyState.PP_FIVE_YEAR_PLAN,
+      LobbyState.PP_CONGRESS,
+      LobbyState.PP_CONFESSION,
+      LobbyState.COMMUNIST_VICTORY_POLICY,
+      LobbyState.ANARCHIST_VICTORY_POLICY,
+      LobbyState.ANARCHIST_WITH_COMMUNIST_VICTORY_POLICY,
     ];
     if (statesToShowPolicyFor.includes(state)) {
       // Check if the election tracker changed positions.
@@ -1085,8 +1293,18 @@ class App extends Component<{}, AppState> {
         newState.liberalPolicies !== oldState.liberalPolicies;
       let fascistChanged =
         newState.fascistPolicies !== oldState.fascistPolicies;
+      let communistChanged =
+        newState.communistPolicies !== oldState.communistPolicies;
+      let anarchistChanged =
+        newState.anarchistPolicies !== oldState.anarchistPolicies;
+      // Article 48/Enabling Act cards don't touch any of the trackers above
+      // (see Board.java's enactPolicy()), so they need their own check here
+      // to still get a "POLICY ENACTED" alert when one is enacted.
+      let emergencyPowerChanged =
+        newState.emergencyPowerTrackerHistory.length !==
+        oldState.emergencyPowerTrackerHistory.length;
 
-      if (liberalChanged || fascistChanged) {
+      if (liberalChanged || fascistChanged || communistChanged || anarchistChanged || emergencyPowerChanged) {
         // Show an alert with the new policy
         this.queueAlert(
           <PolicyEnactedAlert
@@ -1094,6 +1312,18 @@ class App extends Component<{}, AppState> {
             policyType={newState.lastPolicy}
           />
         );
+
+        // An Anarchist policy forces a second card through immediately as
+        // part of its cascade mechanic - queue a second alert right after
+        // the first so that result isn't hidden inside the board update.
+        if (newState.anarchistCascadeForcedPolicy) {
+          this.queueAlert(
+            <PolicyEnactedAlert
+              hideAlert={this.hideAlertAndFinish}
+              policyType={newState.anarchistCascadeForcedPolicy}
+            />
+          );
+        }
       }
 
       // Update the decks, board with the new policies / election tracker.
@@ -1101,6 +1331,8 @@ class App extends Component<{}, AppState> {
         this.setState({
           liberalPolicies: newState.liberalPolicies,
           fascistPolicies: newState.fascistPolicies,
+          liberalTrackerHistory: newState.liberalTrackerHistory,
+          fascistTrackerHistory: newState.fascistTrackerHistory,
           electionTracker: newState.electionTracker,
         });
         setTimeout(() => this.onAnimationFinish(), 500);
@@ -1115,9 +1347,16 @@ class App extends Component<{}, AppState> {
           if (
             newState.electionTracker === 0 &&
             newState.liberalPolicies === 0 &&
-            newState.fascistPolicies === 0
+            newState.fascistPolicies === 0 &&
+            newState.communistPolicies === 0 &&
+            newState.anarchistPolicies === 0 &&
+            newState.emergencyPowerTrackerHistory.length === 0
           ) {
             // If the game has just started (everything in default state), show the player's role.
+            // All tracker counts must be checked (not just liberal/fascist) -
+            // an early Article 48/Enabling Act card enacts without touching
+            // those trackers, so checking only them would misfire this role
+            // reveal again after it, mistaking it for the start of the game.
             this.queueAlert(
               <RoleAlert
                 role={newState.players[this.state.name].id}
@@ -1199,9 +1438,14 @@ class App extends Component<{}, AppState> {
             if (!newState.chancellorChoices) {
               throw new Error("Chancellor choices not found.");
             }
+            // Veto unlocks once either tracker is one policy away from
+            // winning - the fascist tracker always wins at 6, and the
+            // communist tracker wins at 5 (6-7 players) or 6 (8+ players).
+            const numPlayers = newState.playerOrder.length;
+            const communistPoliciesToWin =
+              numPlayers >= 6 && numPlayers <= 7 ? 5 : 6;
             this.queueAlert(
               <ChancellorLegislativePrompt
-                fascistPolicies={newState.fascistPolicies}
                 showError={(message: string) =>
                   this.setState({ snackbarMessage: message })
                 }
@@ -1209,7 +1453,11 @@ class App extends Component<{}, AppState> {
                 sendWSCommand={this.sendWSCommand}
                 // Disable if veto has already happened
                 enableVeto={
-                  newState.fascistPolicies === 5 && !newState.vetoOccurred
+                  (newState.fascistPolicies === 5 ||
+                    (newState.communistsIncluded &&
+                      newState.communistPolicies ===
+                        communistPoliciesToWin - 1)) &&
+                  !newState.vetoOccurred
                 }
               />
             );
@@ -1233,7 +1481,7 @@ class App extends Component<{}, AppState> {
 
         case STATE_PP_PEEK:
           this.queueEventUpdate("PRESIDENTIAL POWER");
-          if (isPresident) {
+          if (isActingOfficer) {
             if (!newState.peek) {
               throw new Error("Peek policies not found.");
             }
@@ -1246,7 +1494,8 @@ class App extends Component<{}, AppState> {
             );
           } else {
             this.queueStatusMessage(
-              "Peek: President is previewing the next 3 policies."
+              (newState.emergencyPowerActingOfficer ?? "The President") +
+                " is previewing the next 3 policies."
             );
           }
           break;
@@ -1266,14 +1515,15 @@ class App extends Component<{}, AppState> {
 
         case STATE_PP_EXECUTION:
           this.queueEventUpdate("PRESIDENTIAL POWER");
-          if (isPresident) {
+          if (isActingOfficer) {
             this.queueAlert(
               SelectExecutionPrompt(name, newState, this.sendWSCommand),
               true
             );
           } else {
             this.queueStatusMessage(
-              "Execution: President is choosing a player to execute."
+              (newState.emergencyPowerActingOfficer ?? "The President") +
+                " is choosing a player to execute."
             );
           }
           break;
@@ -1290,6 +1540,138 @@ class App extends Component<{}, AppState> {
             );
           }
           break;
+
+        // Secret Hitler XL mod presidential/emergency powers.
+        case STATE_PP_COMMUNISTS_INVESTIGATION: {
+          this.queueEventUpdate("COMMUNIST POWER");
+          let isCommunist = newState.players[name].id === Role.COMMUNIST;
+          if (isCommunist) {
+            this.queueStatusMessage(
+              "Bugging: vote below on who to investigate. Once every Communist agrees, it happens automatically."
+            );
+          } else {
+            this.queueStatusMessage(
+              "Bugging: the Communists are looking at a player's party membership."
+            );
+          }
+          break;
+        }
+        case STATE_PP_CONFESSION:
+          this.queueEventUpdate("COMMUNIST POWER");
+          if (isPresident) {
+            this.queueAlert(
+              <ConfessionPrompt
+                role={newState.players[name].id as Role}
+                sendWSCommand={this.sendWSCommand}
+              />,
+              true
+            );
+          } else {
+            this.queueStatusMessage(
+              "Confession: the President must publicly declare a party they are NOT a member of."
+            );
+          }
+          break;
+        case STATE_PP_FIVE_YEAR_PLAN:
+          this.queueEventUpdate("COMMUNIST POWER");
+          if (isPresident) {
+            this.queueAlert(FiveYearPlanPrompt(this.sendWSCommand), true);
+          } else {
+            this.queueStatusMessage(
+              "Five-Year Plan: new policies are being shuffled into the draw deck."
+            );
+          }
+          break;
+        case STATE_PP_CONGRESS:
+          this.queueEventUpdate("COMMUNIST POWER");
+          if (isPresident) {
+            this.queueAlert(CongressPrompt(this.sendWSCommand), true);
+          } else {
+            this.queueStatusMessage(
+              "Congress: the Communists are learning who else is a Communist."
+            );
+          }
+          break;
+        case STATE_PP_RADICALIZATION: {
+          this.queueEventUpdate("COMMUNIST POWER");
+          let isCommunist = newState.players[name].id === Role.COMMUNIST;
+          if (isCommunist) {
+            this.queueStatusMessage(
+              "Radicalization: vote below on who to turn into a Communist. Once every Communist agrees, it happens automatically."
+            );
+          } else {
+            this.queueStatusMessage(
+              "Radicalization: a Communist is turning another player into a Communist."
+            );
+          }
+          break;
+        }
+        case STATE_PP_SOCIAL_DEMOCRATIC:
+          this.queueEventUpdate("PRESIDENTIAL POWER");
+          if (isPresident) {
+            this.queueAlert(
+              <SocialDemocraticPrompt
+                communistsIncluded={newState.communistsIncluded}
+                sendWSCommand={this.sendWSCommand}
+              />,
+              true
+            );
+          } else {
+            this.queueStatusMessage(
+              "Social Democratic: the President is removing a policy from a tracker."
+            );
+          }
+          break;
+        case STATE_PP_PROPAGANDA: {
+          this.queueEventUpdate("EMERGENCY POWER");
+          let isTheActingOfficer = name === newState.emergencyPowerActingOfficer;
+          if (isTheActingOfficer) {
+            if (!newState.propagandaPeek) {
+              throw new Error("Propaganda peek policy not found.");
+            }
+            this.queueAlert(
+              <PropagandaPrompt
+                policy={newState.propagandaPeek}
+                sendWSCommand={this.sendWSCommand}
+              />,
+              true
+            );
+          } else {
+            this.queueStatusMessage(
+              (newState.emergencyPowerActingOfficer ?? "The acting officer") +
+                " is previewing the top policy."
+            );
+          }
+          break;
+        }
+        case STATE_PP_IMPEACHMENT: {
+          this.queueEventUpdate("EMERGENCY POWER");
+          let isTheActingOfficer = name === newState.emergencyPowerActingOfficer;
+          if (isTheActingOfficer) {
+            this.queueAlert(
+              SelectImpeachmentPrompt(name, newState, this.sendWSCommand)
+            );
+          } else {
+            this.queueStatusMessage(
+              "Impeachment: an officer must reveal their party membership to a chosen player."
+            );
+          }
+          break;
+        }
+        case STATE_PP_MARK_FOR_EXECUTION: {
+          this.queueEventUpdate("EMERGENCY POWER");
+          let isTheActingOfficer = name === newState.emergencyPowerActingOfficer;
+          if (isTheActingOfficer) {
+            this.queueAlert(
+              SelectMarkForExecutionPrompt(name, newState, this.sendWSCommand)
+            );
+          } else {
+            this.queueStatusMessage(
+              "Marked For Execution: the acting player is marking a player for later execution."
+            );
+          }
+          break;
+        }
 
         case STATE_POST_LEGISLATIVE:
           // Show results of any special elections, executions, or investigations.
@@ -1355,6 +1737,12 @@ class App extends Component<{}, AppState> {
                 // Is President; do nothing because we handle the
                 // response directly from the server.
               }
+              break;
+            case STATE_PP_RADICALIZATION:
+              this.showRadicalizationResult(name, newState);
+              break;
+            case STATE_PP_CONGRESS:
+              this.showCongressResult(name, newState);
               break;
             case STATE_PP_PEEK: // No additional case is necessary for peeking.
             default:
@@ -1481,6 +1869,8 @@ class App extends Component<{}, AppState> {
                       gameState: DEFAULT_GAME_STATE,
                       liberalPolicies: 0,
                       fascistPolicies: 0,
+                      liberalTrackerHistory: [],
+                      fascistTrackerHistory: [],
                       electionTracker: 0,
                       drawDeckSize: 17,
                       discardDeckSize: 0,
@@ -1489,6 +1879,69 @@ class App extends Component<{}, AppState> {
                 >
                   <PlayerDisplay
                     players={players}
+                    playerDisabledFilter={DISABLE_NONE}
+                    showRoles={true}
+                    showLabels={false}
+                    useAsButtons={false}
+                    user={this.state.name}
+                    gameState={newState}
+                  />
+                </ButtonPrompt>
+              ),
+              showAlert: true,
+            });
+          });
+          this.gameOver = true;
+          this.reconnectOnConnectionClosed = false;
+          this.websocket?.close();
+          break;
+
+        // Secret Hitler XL mod victory states. A dedicated victory screen
+        // (with correct per-team art and player groupings) isn't built yet,
+        // so this shows a neutral game-over screen with everyone's role
+        // revealed, rather than leaving the game looking stuck.
+        case STATE_COMMUNIST_VICTORY_POLICY:
+        case STATE_COMMUNIST_WITH_LIBERAL_VICTORY_EXECUTION:
+        case STATE_ANARCHIST_VICTORY_POLICY:
+        case STATE_ANARCHIST_WITH_COMMUNIST_VICTORY_POLICY:
+        case STATE_CAPITALIST_VICTORY_WITH_LIBERAL_POLICY:
+        case STATE_CAPITALIST_VICTORY_WITH_LIBERAL_EXECUTION:
+        case STATE_CAPITALIST_VICTORY_WITH_FASCIST_POLICY:
+        case STATE_CAPITALIST_VICTORY_WITH_FASCIST_ELECTION:
+        case STATE_MONARCHIST_VICTORY_WITH_FASCIST_ELECTION:
+        case STATE_MONARCHIST_AND_CAPITALIST_VICTORY_WITH_FASCIST_ELECTION:
+        case STATE_MONARCHIST_VICTORY_WITH_FASCIST_POLICY:
+        case STATE_MONARCHIST_AND_CAPITALIST_VICTORY_WITH_FASCIST_POLICY:
+          this.addAnimationToQueue(() => {
+            this.setState({
+              alertContent: (
+                <ButtonPrompt
+                  renderLabel={() => (
+                    <p style={{ textAlign: "center" }} className={"highlight"}>
+                      {XL_VICTORY_MESSAGES[newState.state] ?? "Game Over."}
+                    </p>
+                  )}
+                  buttonText={"RETURN TO LOBBY"}
+                  buttonOnClick={() => {
+                    this.gameOver = false;
+                    this.reconnectOnConnectionClosed = true;
+                    this.tryOpenWebSocket(this.state.name, this.state.lobby);
+                    this.hideAlertAndFinish();
+                    this.setState({
+                      page: PAGE.LOBBY,
+                      gameState: DEFAULT_GAME_STATE,
+                      liberalPolicies: 0,
+                      fascistPolicies: 0,
+                      liberalTrackerHistory: [],
+                      fascistTrackerHistory: [],
+                      electionTracker: 0,
+                      drawDeckSize: 17,
+                      discardDeckSize: 0,
+                    });
+                  }}
+                >
+                  <PlayerDisplay
+                    players={newState.playerOrder}
                     playerDisabledFilter={DISABLE_NONE}
                     showRoles={true}
                     showLabels={false}
@@ -1696,6 +2149,49 @@ class App extends Component<{}, AppState> {
   // </editor-fold>
 
   /**
+   * Renders the live Communist vote panel (see CommunistVotePanel) if the
+   * current player is an alive Communist and the Radicalization or
+   * Communist Investigation power is active - null otherwise. Rendered
+   * directly from current state (not via the one-shot alert queue) so it
+   * stays open and updates live as other Communists change their vote.
+   */
+  renderCommunistVotePanel(): React.JSX.Element | null {
+    const gameState = this.state.gameState;
+    const amICommunist =
+      gameState.aliveCommunists?.includes(this.state.name) ?? false;
+    if (!amICommunist) {
+      return null;
+    }
+    if (gameState[PARAM_STATE] === STATE_PP_RADICALIZATION) {
+      return (
+        <CommunistVotePanel
+          user={this.state.name}
+          gameState={gameState}
+          sendWSCommand={this.sendWSCommand}
+          label={"RADICALIZATION"}
+          headerText={
+            "Vote for who to turn into a Communist. Once every Communist agrees, it happens automatically."
+          }
+        />
+      );
+    }
+    if (gameState[PARAM_STATE] === STATE_PP_COMMUNISTS_INVESTIGATION) {
+      return (
+        <CommunistVotePanel
+          user={this.state.name}
+          gameState={gameState}
+          sendWSCommand={this.sendWSCommand}
+          label={"BUGGING"}
+          headerText={
+            "Vote for who to investigate. Once every Communist agrees, the result is shared with the whole team."
+          }
+        />
+      );
+    }
+    return null;
+  }
+
+  /**
    * Renders the game page.
    */
   renderGamePage() {
@@ -1723,6 +2219,8 @@ class App extends Component<{}, AppState> {
         </div>
 
         <StatusBar>{this.state.statusBarText}</StatusBar>
+
+        {this.renderCommunistVotePanel()}
 
         <div style={{ display: "inline-block" }}>
           <div
@@ -1760,9 +2258,50 @@ class App extends Component<{}, AppState> {
                 </button>
 
                 <PlayerPolicyStatus
-                  numFascistPolicies={this.state.fascistPolicies}
-                  numLiberalPolicies={this.state.liberalPolicies}
-                  playerCount={this.state.gameState.playerOrder.length}
+                  remainingFascistPolicies={
+                    this.state.gameState.remainingFascistPolicies
+                  }
+                  remainingLiberalPolicies={
+                    this.state.gameState.remainingLiberalPolicies
+                  }
+                  remainingCommunistPolicies={
+                    this.state.gameState.remainingCommunistPolicies
+                  }
+                  remainingAnarchistPolicies={
+                    this.state.gameState.remainingAnarchistPolicies
+                  }
+                  remainingAntiFascistPolicies={
+                    this.state.gameState.remainingAntiFascistPolicies
+                  }
+                  remainingAntiCommunistPolicies={
+                    this.state.gameState.remainingAntiCommunistPolicies
+                  }
+                  remainingSocialDemocraticPolicies={
+                    this.state.gameState.remainingSocialDemocraticPolicies
+                  }
+                  remainingArticle48Policies={
+                    this.state.gameState.remainingArticle48Policies
+                  }
+                  remainingEnablingActPolicies={
+                    this.state.gameState.remainingEnablingActPolicies
+                  }
+                  roleCounts={this.state.gameState.roleCounts}
+                  communistsIncluded={this.state.gameState.communistsIncluded}
+                  anarchistIncluded={this.state.gameState.anarchistIncluded}
+                  capitalistIncluded={this.state.gameState.capitalistIncluded}
+                  monarchistIncluded={this.state.gameState.monarchistIncluded}
+                  antiFascistPolicyIncluded={
+                    this.state.gameState.antiFascistPolicyIncluded
+                  }
+                  antiCommunistPolicyIncluded={
+                    this.state.gameState.antiCommunistPolicyIncluded
+                  }
+                  socialDemocraticPolicyIncluded={
+                    this.state.gameState.socialDemocraticPolicyIncluded
+                  }
+                  emergencyPowersIncluded={
+                    this.state.gameState.emergencyPowersIncluded > 0
+                  }
                 />
               </div>
 
@@ -1776,6 +2315,22 @@ class App extends Component<{}, AppState> {
               numPlayers={this.state.gameState.playerOrder.length}
               numFascistPolicies={this.state.fascistPolicies}
               numLiberalPolicies={this.state.liberalPolicies}
+              liberalTrackerHistory={this.state.liberalTrackerHistory}
+              fascistTrackerHistory={this.state.fascistTrackerHistory}
+              communistTrackerHistory={
+                this.state.gameState.communistTrackerHistory
+              }
+              numCommunistPolicies={this.state.gameState.communistPolicies}
+              communistsIncluded={this.state.gameState.communistsIncluded}
+              longerLiberalTrackIncluded={
+                this.state.gameState.longerLiberalTrackIncluded
+              }
+              emergencyPowersIncluded={
+                this.state.gameState.emergencyPowersIncluded
+              }
+              emergencyPowerTrackerHistory={
+                this.state.gameState.emergencyPowerTrackerHistory
+              }
               electionTracker={this.state.electionTracker}
             />
           </div>

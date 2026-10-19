@@ -35,6 +35,7 @@ class PlayerDisplayPrompt extends Component{
                     useAsButtons = {true}
                     playerDisabledFilter = {props.disabledFilter}
                     showLabels = {false}
+                    showNotHitlerLabel = {props.showNotHitlerLabel}
                     selection = {this.state.selection}
                     onSelection = {(itemSelected) => {
                         this.setState({selection: itemSelected});
@@ -61,6 +62,7 @@ PlayerDisplayPrompt.propTypes = {
     gameState: PropTypes.object.isRequired,
     includeUser:PropTypes.bool,
     disabledFilter: PropTypes.func.isRequired,
+    showNotHitlerLabel: PropTypes.bool,
 
     label: PropTypes.string,
     headerText: PropTypes.string,

@@ -57,8 +57,34 @@ public class Deck implements Serializable {
         return deck.get(index);
     }
 
+    /**
+     * Removes a specific Policy instance from the deck, wherever it is.
+     * @param policy the Policy to remove.
+     * @modifies this
+     * @effects removes {@code policy} from the deck, if present.
+     * @return true if the policy was found and removed.
+     */
+    public boolean removeIfPresent(Policy policy) {
+        return deck.remove(policy);
+    }
+
     public boolean isEmpty() {
         return getSize() == 0;
+    }
+
+    /**
+     * Counts how many Policies of the given type are currently in the deck.
+     * @param type the Policy.Type to count.
+     * @return the number of Policies of that type in the deck.
+     */
+    public int countByType(Policy.Type type) {
+        int count = 0;
+        for (Policy policy : deck) {
+            if (policy.getType() == type) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
@@ -67,6 +93,19 @@ public class Deck implements Serializable {
      */
     public int getSize() {
         return deck.size();
+    }
+
+    /**
+     * Gets the ordered list of Policy types currently in this deck, for
+     * debugging purposes (e.g. a debug endpoint showing the true draw order).
+     * @return an unmodifiable list of Policy.Type, where index 0 is the top of the deck.
+     */
+    public List<Policy.Type> getOrderedTypes() {
+        List<Policy.Type> types = new ArrayList<>();
+        for (Policy policy : deck) {
+            types.add(policy.getType());
+        }
+        return Collections.unmodifiableList(types);
     }
 
     /**

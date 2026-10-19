@@ -2,6 +2,7 @@ import React, { ReactElement, useRef, useState } from "react";
 import Player from "./Player";
 import {
   PLAYER_IDENTITY,
+  PLAYER_CONFIRMED_NOT_HITLER,
   PARAM_CHANCELLOR,
   PARAM_STATE,
   STATE_CHANCELLOR_NOMINATION,
@@ -107,6 +108,11 @@ type PlayerDisplayProps = {
   useAsButtons?: boolean;
   showVotes?: boolean;
   showLabels?: boolean;
+  /** Controls only the "NOT HITLER" badge. Defaults to mirroring
+   * showLabels, but can be set independently - e.g. to show it in a
+   * selection prompt (like Chancellor nomination) without also turning on
+   * the CHANCELLOR/PRESIDENT text labels there. */
+  showNotHitlerLabel?: boolean;
   showRoles?: boolean;
   showBusy?: boolean;
   includeUser?: boolean;
@@ -280,6 +286,11 @@ export default function PlayerDisplay(
           label = <p id="player-display-label">{roleText}</p>;
         }
 
+        const shouldShowNotHitlerLabel =
+          props.showNotHitlerLabel !== undefined
+            ? props.showNotHitlerLabel
+            : props.showLabels;
+
         const isSelected = props.selection === playerName;
         const onClick = () => {
           onPlayerSelected(playerName);
@@ -309,6 +320,18 @@ export default function PlayerDisplay(
               showVote={showVote}
               vote={props.gameState.userVotes[playerName]}
               icon={props.gameState.icon[playerName]}
+              isMarkedForExecution={
+                playerName === props.gameState.markedForExecution
+              }
+              confessionDeniedParty={
+                playerName === props.gameState.confessionUsername
+                  ? props.gameState.confessionDeniedParty
+                  : undefined
+              }
+              confirmedNotHitler={
+                !!shouldShowNotHitlerLabel &&
+                !!playerData[PLAYER_CONFIRMED_NOT_HITLER]
+              }
             />
           </div>
         );
