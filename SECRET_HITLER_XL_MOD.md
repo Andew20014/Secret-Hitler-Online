@@ -6,6 +6,22 @@ and a number of UI/UX and correctness fixes discovered during live
 playtesting. All mod content is opt-in per lobby (see **Lobby Settings**
 below) and defaults to vanilla Secret Hitler when nothing is enabled.
 
+## Credits
+
+This is **not an original design** — it's an implementation of the "Secret
+Hitler XL" rules and roles designed by the community on this BoardGameGeek
+thread: https://boardgamegeek.com/thread/2749708/secret-hitler-xl-10-plus-players-new-optional-role.
+All credit for the game design (the new factions, policies, and powers
+documented below) goes to the people on that thread, not to me.
+
+The card/board/icon assets in `frontend/src/assets/` were also sourced from
+that same thread. I'm not an artist, so I ran them through AI tools to try
+to bring them to a more consistent visual style with the base game's art —
+that pass is rough in places and several assets could still use further
+cleanup/polish. I don't claim any authorship or rights over the original
+game design or the source assets; this is a fan implementation for personal/
+private use.
+
 ## New factions
 
 Configurable independently, with minimum player counts enforced by
